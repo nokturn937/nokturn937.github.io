@@ -150,7 +150,7 @@
   <header>
     <h1>Vágj bele! – akciós könyvek</h1>
     <p>A bookline.hu „Vágj bele! (Vagy fűrészelj, köss, ültess...)” akciójának összes tétele, kedvezménnyel együtt. Csak online.
-      Forrás: <a href="https://bookline.hu/sortlist/sortlist.action?id=30390&amp;page=1" target="_blank" rel="noopener">bookline.hu akciós lista</a> · lekérve: 2026. október 3.</p>
+      Forrás: <a href="https://bookline.hu/sortlist/sortlist.action?id=30390&amp;page=1" target="_blank" rel="noopener">bookline.hu akciós lista</a> · lekérve: 2026. október 3.<span id="views" hidden> · <b id="views-n"></b> megtekintés</span></p>
   </header>
 
   <section class="stats" id="stats" aria-label="Összesítés"></section>
@@ -300,6 +300,20 @@
   }
 
   render();
+})();
+</script>
+<script>
+// Látogatószámláló (abacus.jasoncameron.dev, regisztráció nélkül). Csak az éles oldalon növel, máshol csak kiolvas.
+(function () {
+  var live = location.hostname === 'nokturn937.github.io';
+  fetch('https://abacus.jasoncameron.dev/' + (live ? 'hit' : 'get') + '/nokturn937-github-io/vagj-bele')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || typeof d.value !== 'number') return;
+      document.getElementById('views-n').textContent = new Intl.NumberFormat('hu-HU').format(d.value);
+      document.getElementById('views').hidden = false;
+    })
+    .catch(function () {});
 })();
 </script>
 </body>

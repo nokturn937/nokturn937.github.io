@@ -115,6 +115,14 @@
     transition: transform .12s ease, box-shadow .12s ease;
   }
   .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+  .card-link { display: flex; flex-direction: column; flex: 1; color: inherit; text-decoration: none; }
+  .card-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
+  .moly {
+    margin: 0 14px; padding: 8px 0 10px; border-top: 1px solid var(--border);
+    color: var(--muted); font-size: 12.5px; text-decoration: none;
+  }
+  .moly:hover, .moly:focus-visible { color: var(--accent); }
+  .moly:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
   .cover {
     aspect-ratio: 3 / 4; background: var(--chip-bg);
     display: flex; align-items: center; justify-content: center; padding: 14px;
@@ -264,8 +272,23 @@
     return e;
   }
 
+  // Moly.hu keresőszöveg: főcím (az első „ - ” előtti rész, zárójeles rész és sorszám nélkül) + az első szerző nevének
+  // legrövidebb (legalább 3 betűs) tagja. A moly keresője minden szót megkövetel, ezért az alcím, a kiadásjelölés vagy egy
+  // hibásan összevont névtag (pl. „Pintérnévégh”) nulla találatot adna; a rövid névtag ritkábban sérült.
+  function molyQuery(b) {
+    var t = b.title.split(/\s+[-–]\s+/)[0]
+      .replace(/\s*\([^)]*\)/g, '')
+      .replace(/[\s,]+(\d+\.|[IVX]+\.)(\s*kötet)?\s*$/i, '')
+      .trim();
+    var a = (b.authors[0] || '').split(/[\s,]+/).map(function (w) { return w.replace(/\./g, ''); }).filter(function (w) {
+      return w.length > 2 && !/^(dr|prof|báró|bárónő|sir|lady|jr)$/i.test(w);
+    }).sort(function (x, y) { return x.length - y.length; })[0] || '';
+    return (t + ' ' + a).trim();
+  }
+
   function card(b) {
-    var a = el('a', 'card');
+    var c = el('div', 'card');
+    var a = el('a', 'card-link');
     a.href = b.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
     a.title = b.title;
 
@@ -298,7 +321,15 @@
     var meta = [b.stock, b.ship].filter(Boolean).join(' · ');
     if (meta) body.appendChild(el('div', 'meta', meta));
     a.appendChild(body);
-    return a;
+    c.appendChild(a);
+
+    var q = molyQuery(b);
+    var moly = el('a', 'moly', 'Keresés a moly.hu-n ↗');
+    moly.href = 'https://moly.hu/kereses?query=' + encodeURIComponent(q);
+    moly.target = '_blank'; moly.rel = 'noopener noreferrer';
+    moly.title = '„' + q + '” keresése a moly.hu-n';
+    c.appendChild(moly);
+    return c;
   }
 
   function render() {

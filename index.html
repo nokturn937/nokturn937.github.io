@@ -62,11 +62,36 @@
     font-size: 13.5px; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums;
   }
   li a[data-state="ending"] .countdown { background: var(--accent); color: var(--on-accent); }
-  li a[data-state="ended"] .countdown { background: none; color: var(--muted); padding: 0; }
-  li a[data-state="ended"] { opacity: .5; }
+  /* Lejárt akció: szürke, áthúzott kedvezmény, keretes „Lejárt” címke */
+  li a[data-state="ended"] { opacity: .6; filter: grayscale(1); transition: opacity .12s ease; }
+  li a[data-state="ended"]:hover, li a[data-state="ended"]:focus-visible { opacity: .85; }
+  li a[data-state="ended"] .pct { text-decoration: line-through; }
+  li a[data-state="ended"] .countdown { background: none; border: 1px solid var(--border); color: var(--muted); padding: 2px 9px; }
+  .empty { color: var(--muted); margin: 0; padding: 20px 4px; border-bottom: 1px solid var(--border); }
+  .archive { margin-top: 28px; }
+  .archive > summary {
+    display: flex; align-items: center; gap: 8px; width: fit-content;
+    padding: 6px 4px; cursor: pointer; list-style: none;
+    color: var(--muted); font-weight: 600; font-size: 15px;
+  }
+  .archive > summary::-webkit-details-marker { display: none; }
+  .archive > summary::before {
+    content: ""; width: 7px; height: 7px; margin-right: 2px;
+    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg); transition: transform .15s ease;
+  }
+  .archive[open] > summary::before { transform: rotate(45deg); }
+  .archive > summary:hover, .archive > summary:focus-visible { color: var(--text); }
+  .archive-count { font-size: 13px; font-weight: 500; padding: 0 8px; border: 1px solid var(--border); border-radius: 999px; }
+  .archive ul { margin-top: 8px; }
   .pct { color: var(--accent); font-weight: 800; font-size: 18px; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .nowrap { white-space: nowrap; }
   footer { margin-top: 32px; color: var(--muted); font-size: 13px; }
+  .version {
+    display: inline-block; margin-top: 20px; color: var(--muted); opacity: .75;
+    font-size: 12px; text-decoration: none; font-variant-numeric: tabular-nums;
+  }
+  .version:hover, .version:focus-visible { color: var(--accent); opacity: 1; }
   @media (max-width: 520px) {
     main { padding-top: 48px; }
     h1 { font-size: 28px; }
@@ -78,8 +103,9 @@
   <h1>Könyvakciók</h1>
   <p class="lead">Online könyvakciók egy helyen, a kedvezmények mértékével.</p>
 
-  <!-- Új akció: másold le az alábbi <li> blokkot, és írd át a linket, a nevet és az adatokat. -->
-  <ul>
+  <!-- Új akció: másold le az alábbi <li> blokkot ebbe a listába, és írd át a linket, a nevet és az adatokat.
+       A lejárt akciókat az oldal magától áthelyezi az Archívumba. -->
+  <ul id="active">
     <li>
       <a href="vagj-bele/" data-start="2026-10-01T00:00:00+02:00" data-end="2026-10-16T00:00:00+02:00">
         <div>
@@ -93,8 +119,17 @@
       </a>
     </li>
   </ul>
+  <p id="no-active" class="empty" hidden>Jelenleg nincs futó akció.</p>
 
-  <footer>Az árak a lekérés napján érvényesek, azóta változhattak. A visszaszámlálás az akció utolsó napjának végéig (magyar idő szerint) tart.</footer>
+  <details id="archive" class="archive" hidden>
+    <summary>Archívum <span id="archive-count" class="archive-count"></span></summary>
+    <ul id="archive-list"></ul>
+  </details>
+
+  <footer>
+    Az árak a lekérés napján érvényesek, azóta változhattak. A visszaszámlálás az akció utolsó napjának végéig (magyar idő szerint) tart.
+    <br><a class="version" href="valtozasok/" title="Változások">v0.02</a>
+  </footer>
 </main>
 <script>
 // Akció-visszaszámláló: minden [data-end] elemen belüli .countdown-t frissíti. A data-start opcionális.
@@ -129,6 +164,38 @@
   }
   tick();
   setInterval(tick, 1000);
+})();
+</script>
+<script>
+// Archívum: a lejárt akciók a lenyitható Archívum alá kerülnek (legutóbb lejárt elöl), a futók eredeti sorrendben maradnak.
+(function () {
+  var active = document.getElementById('active');
+  var archive = document.getElementById('archive');
+  var archiveList = document.getElementById('archive-list');
+  var noActive = document.getElementById('no-active');
+  var seq = 0, last = '';
+  function arrange() {
+    var now = Date.now();
+    var items = Array.prototype.map.call(document.querySelectorAll('li > [data-end]'), function (a) {
+      var li = a.parentNode;
+      if (!li.dataset.order) li.dataset.order = seq++;
+      var end = Date.parse(a.dataset.end);
+      return { li: li, end: end, order: Number(li.dataset.order), ended: now >= end };
+    });
+    // Csak akkor rendezzük át, ha valami lejárt (vagy újra élő lett), különben a hover/fókusz megmaradhat
+    var sig = items.map(function (x) { return x.order + (x.ended ? 'x' : 'o'); }).join();
+    if (sig === last) return;
+    last = sig;
+    var live = items.filter(function (x) { return !x.ended; }).sort(function (a, b) { return a.order - b.order; });
+    var old = items.filter(function (x) { return x.ended; }).sort(function (a, b) { return b.end - a.end; });
+    live.forEach(function (x) { active.appendChild(x.li); });
+    old.forEach(function (x) { archiveList.appendChild(x.li); });
+    noActive.hidden = live.length > 0;
+    archive.hidden = old.length === 0;
+    document.getElementById('archive-count').textContent = old.length;
+  }
+  arrange();
+  setInterval(arrange, 1000);
 })();
 </script>
 </body>

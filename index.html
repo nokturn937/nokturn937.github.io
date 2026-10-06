@@ -14,6 +14,8 @@
     --accent: #b8471f;
     --accent-soft: #fbeee7;
     --on-accent: #ffffff;
+    --warn: #8a5a00;
+    --warn-bg: #fff4d6;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -24,6 +26,8 @@
       --accent: #f08a5d;
       --accent-soft: #3b2418;
       --on-accent: #161514;
+      --warn: #ffd27a;
+      --warn-bg: #3a2f14;
     }
   }
   :root[data-theme="dark"] {
@@ -34,6 +38,8 @@
     --accent: #f08a5d;
     --accent-soft: #3b2418;
     --on-accent: #161514;
+    --warn: #ffd27a;
+    --warn-bg: #3a2f14;
   }
   * { box-sizing: border-box; }
   body {
@@ -62,6 +68,12 @@
     font-size: 13.5px; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums;
   }
   li a[data-state="ending"] .countdown { background: var(--accent); color: var(--on-accent); }
+  /* Határidő nélküli akció: keretes felülvizsgálati dátum, a napjától sárga „Felülvizsgálandó” címke */
+  .side .review {
+    display: inline-block; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border);
+    color: var(--muted); font-size: 13.5px; font-weight: 650; white-space: nowrap;
+  }
+  li a[data-state="review"] .review { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
   /* Lejárt akció: szürke, áthúzott kedvezmény, keretes „Lejárt” címke */
   li a[data-state="ended"] { opacity: .6; filter: grayscale(1); transition: opacity .12s ease; }
   li a[data-state="ended"]:hover, li a[data-state="ended"]:focus-visible { opacity: .85; }
@@ -104,7 +116,9 @@
   <p class="lead">Online könyvakciók egy helyen, a kedvezmények mértékével.</p>
 
   <!-- Új akció: másold le az alábbi <li> blokkot ebbe a listába, és írd át a linket, a nevet és az adatokat.
-       A lejárt akciókat az oldal magától áthelyezi az Archívumba. -->
+       A lejárt akciókat az oldal magától áthelyezi az Archívumba.
+       Ha a webshop nem ad meg határidőt: data-end helyett data-review (a felülvizsgálat napja), .countdown helyett .review;
+       ilyenkor nincs visszaszámlálás és archiválás, a megadott naptól „Felülvizsgálandó” címke jelenik meg. -->
   <ul id="active">
     <li>
       <a href="vagj-bele/" data-start="2026-10-01T00:00:00+02:00" data-end="2026-10-16T00:00:00+02:00">
@@ -130,6 +144,18 @@
         </div>
       </a>
     </li>
+    <li>
+      <a href="oszi-bekuckozas/" data-review="2026-10-31T00:00:00+01:00">
+        <div>
+          <div class="name"><span class="shop">Kossuth.hu –</span> Őszi bekuckózás</div>
+          <div class="meta">Romance, fantasy, thriller, hangoskönyvek · 1396 könyv, 260 hangoskönyv · <span class="nowrap">Időtartam: nincs meghatározva</span></div>
+        </div>
+        <div class="side">
+          <span class="pct">10–83%</span>
+          <span class="review" data-due="Felülvizsgálandó">Felülvizsgálat: okt. 31.</span>
+        </div>
+      </a>
+    </li>
   </ul>
   <p id="no-active" class="empty" hidden>Jelenleg nincs futó akció.</p>
 
@@ -140,7 +166,7 @@
 
   <footer>
     Az árak a lekérés napján érvényesek, azóta változhattak. A visszaszámlálás az akció utolsó napjának végéig (magyar idő szerint) tart.
-    <br><a class="version" href="valtozasok/" title="Változások">v0.03</a>
+    <br><a class="version" href="valtozasok/" title="Változások">v0.031</a>
   </footer>
 </main>
 <script>
@@ -188,10 +214,11 @@
   var seq = 0, last = '';
   function arrange() {
     var now = Date.now();
-    var items = Array.prototype.map.call(document.querySelectorAll('li > [data-end]'), function (a) {
+    // A határidő nélküli (data-review) akciók is a listában vannak, különben az átrendezés a lista elejére tolná őket
+    var items = Array.prototype.map.call(document.querySelectorAll('li > [data-end], li > [data-review]'), function (a) {
       var li = a.parentNode;
       if (!li.dataset.order) li.dataset.order = seq++;
-      var end = Date.parse(a.dataset.end);
+      var end = a.dataset.end ? Date.parse(a.dataset.end) : Infinity;
       return { li: li, end: end, order: Number(li.dataset.order), ended: now >= end };
     });
     // Csak akkor rendezzük át, ha valami lejárt (vagy újra élő lett), különben a hover/fókusz megmaradhat
@@ -208,6 +235,24 @@
   }
   arrange();
   setInterval(arrange, 1000);
+})();
+</script>
+<script>
+// Felülvizsgálat: határidő nélküli akciónál (data-end helyett data-review) a megadott naptól „Felülvizsgálandó” címke.
+(function () {
+  var els = document.querySelectorAll('[data-review]');
+  if (!els.length) return;
+  function tick() {
+    var now = Date.now();
+    els.forEach(function (el) {
+      var due = now >= Date.parse(el.dataset.review);
+      el.dataset.state = due ? 'review' : 'open';
+      var out = el.querySelector('.review');
+      if (out && due && out.dataset.due) out.textContent = out.dataset.due;
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
 })();
 </script>
 </body>
